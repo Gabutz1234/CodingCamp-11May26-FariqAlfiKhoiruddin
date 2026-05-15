@@ -55,7 +55,10 @@ const chartLegend   = document.getElementById('chartLegend');
 function init() {
   loadFromStorage();
   applyTheme(localStorage.getItem(THEME_KEY) || 'light');
-  spendLimitEl.value = spendingLimit > 0 ? spendingLimit : '';
+  // Restore spending limit field from saved value
+  if (spendingLimit > 0) {
+    spendLimitEl.value = spendingLimit;
+  }
   render();
   bindEvents();
 }
@@ -84,6 +87,14 @@ function bindEvents() {
   themeToggle.addEventListener('click', toggleTheme);
   spendLimitEl.addEventListener('input', handleLimitChange);
   spendLimitEl.addEventListener('change', handleLimitChange);
+
+  // Prevent mouse wheel from changing number input values while scrolling the page
+  document.querySelectorAll('input[type=number]').forEach(input => {
+    input.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      input.blur();
+    }, { passive: false });
+  });
 }
 
 // ── Add Transaction ──────────────────────────────────────────
@@ -102,7 +113,12 @@ function handleAddTransaction(e) {
   transactions.unshift(tx);
   saveToStorage();
   render();
+
+  // Reset form but preserve the spending limit field
+  const savedLimit = spendLimitEl.value;
   txForm.reset();
+  spendLimitEl.value = savedLimit;
+
   clearErrors();
 }
 
@@ -159,10 +175,7 @@ function handleClearAll() {
 // ── Spending Limit ───────────────────────────────────────────
 function handleLimitChange() {
   const val = parseFloat(spendLimitEl.value);
-  const newLimit = (!isNaN(val) && val > 0) ? val : 0;
-  // Only re-render if the limit actually changed
-  if (newLimit === spendingLimit) return;
-  spendingLimit = newLimit;
+  spendingLimit = (!isNaN(val) && val > 0) ? val : 0;
   saveToStorage();
   render();
 }
@@ -220,6 +233,11 @@ function getCategoryTotals() {
 
 // ── Render (orchestrator) ────────────────────────────────────
 function render() {
+  // Always sync spending limit from the input field before rendering
+  // so the value is never stale when triggered from other events
+  const fieldVal = parseFloat(spendLimitEl.value);
+  spendingLimit = (!isNaN(fieldVal) && fieldVal > 0) ? fieldVal : 0;
+
   renderBalance();
   renderList();
   updateChart();
@@ -268,11 +286,28 @@ function renderList() {
 
   txEmpty.style.display = 'none';
 
+  // Calculate which transactions caused the running total to exceed the limit.
+  // We use chronological order (oldest first) to determine the running total,
+  // then mark every transaction that pushed the cumulative sum over the limit.
+  const overLimitIds = new Set();
+  if (spendingLimit > 0) {
+    const chronological = [...transactions].sort(
+      (a, b) => new Date(a.date) - new Date(b.date)
+    );
+    let running = 0;
+    for (const tx of chronological) {
+      running += tx.amount;
+      if (running > spendingLimit) {
+        overLimitIds.add(tx.id);
+      }
+    }
+  }
+
   // Build fragment for performance
   const fragment = document.createDocumentFragment();
 
   sorted.forEach(tx => {
-    const isOver = spendingLimit > 0 && tx.amount > spendingLimit;
+    const isOver = overLimitIds.has(tx.id);
     const li = document.createElement('li');
     li.className = 'tx-item' + (isOver ? ' over-limit' : '');
     li.dataset.id = tx.id;

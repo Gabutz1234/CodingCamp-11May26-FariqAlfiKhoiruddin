@@ -515,12 +515,13 @@ body {
 }
 
 .tx-item.over-limit {
-  border-left: 3px solid #ef4444;
-  background: rgba(239, 68, 68, 0.06);
+  border: 2px solid #ef4444;
+  background: rgba(239, 68, 68, 0.08);
 }
 
 [data-theme="dark"] .tx-item.over-limit {
-  background: rgba(239, 68, 68, 0.1);
+  border: 2px solid #ef4444;
+  background: rgba(239, 68, 68, 0.15);
 }
 
 @keyframes slideIn {

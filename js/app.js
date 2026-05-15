@@ -79,9 +79,10 @@ function saveToStorage() {
 // ── Event Binding ────────────────────────────────────────────
 function bindEvents() {
   txForm.addEventListener('submit', handleAddTransaction);
-  sortSelect.addEventListener('change', renderList);
+  sortSelect.addEventListener('change', render);
   clearAllBtn.addEventListener('click', handleClearAll);
   themeToggle.addEventListener('click', toggleTheme);
+  spendLimitEl.addEventListener('input', handleLimitChange);
   spendLimitEl.addEventListener('change', handleLimitChange);
 }
 
@@ -158,7 +159,10 @@ function handleClearAll() {
 // ── Spending Limit ───────────────────────────────────────────
 function handleLimitChange() {
   const val = parseFloat(spendLimitEl.value);
-  spendingLimit = (!isNaN(val) && val > 0) ? val : 0;
+  const newLimit = (!isNaN(val) && val > 0) ? val : 0;
+  // Only re-render if the limit actually changed
+  if (newLimit === spendingLimit) return;
+  spendingLimit = newLimit;
   saveToStorage();
   render();
 }
